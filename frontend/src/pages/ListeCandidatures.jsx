@@ -10,70 +10,6 @@ const funnelData = [
   { name: 'Embauches', candidats: 6, pourcentage: 4 },
 ];
 
-// Données unifiées pour l'ensemble du cycle des candidatures
-const candidaturesInitiales = [
-  {
-    id: 1,
-    nom: "Amine Benjelloun",
-    poste: "Développeur Fullstack React/Node",
-    entreprise: "Airbus Atlantic Maroc",
-    date: "09 Juillet 2026",
-    statut: "Pas encore traité",
-    email: "amine.b@example.com",
-    initiaux: "AB"
-  },
-  {
-    id: 2,
-    nom: "Youssef El Alami",
-    poste: "Développeur Web / React Native",
-    entreprise: "Ingenexa",
-    date: "02 Juillet 2026",
-    statut: "Pas encore traité",
-    email: "youssef.alami@example.com",
-    initiaux: "YE"
-  },
-  {
-    id: 3,
-    nom: "Sarah Martin",
-    poste: "Développeur Mobile (Expo / React Native)",
-    entreprise: "IT ROAD",
-    date: "15 Juin 2026",
-    statut: "Pas encore traité",
-    email: "sarah.m@example.com",
-    initiaux: "SM"
-  },
-  {
-    id: 4,
-    nom: "Thomas Dubois",
-    poste: "Stagiaire Développeur (PFE)",
-    entreprise: "NEMO",
-    date: "05 Juin 2026",
-    statut: "Refusé",
-    email: "thomas.d@example.com",
-    initiaux: "TD"
-  },
-  {
-    id: 5,
-    nom: "Yasmine Alami",
-    poste: "Stagiaire Business Analyst / IT",
-    entreprise: "YT Consulting",
-    date: "28 Mai 2026",
-    statut: "Refusé",
-    email: "yasmine.a@example.com",
-    initiaux: "YA"
-  },
-  {
-    id: 6,
-    nom: "Karim Tazi",
-    poste: "Développeur Front-end (React/Tailwind)",
-    entreprise: "Viveris",
-    date: "12 Juillet 2026",
-    statut: "Accepté",
-    email: "karim.tazi@example.com",
-    initiaux: "KT"
-  }
-];
-
 function getStatutStyle(statut) {
   switch (statut) {
     case 'Accepté': return 'bg-green-100 text-green-800';
@@ -100,6 +36,70 @@ export default function DashboardRH() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filtreStatut, setFiltreStatut] = useState('Tous');
 
+  // Utilisation d'un State pour les candidatures pour garantir la réactivité dans React
+  const [candidatures, setCandidatures] = useState([
+    {
+      id: 1,
+      nom: "Amine Benjelloun",
+      poste: "Développeur Fullstack React/Node",
+      entreprise: "Airbus Atlantic Maroc",
+      date: "09 Juillet 2026",
+      statut: "Pas encore traité",
+      email: "amine.b@example.com",
+      initiaux: "AB"
+    },
+    {
+      id: 2,
+      nom: "Youssef El Alami",
+      poste: "Développeur Web / React Native",
+      entreprise: "Ingenexa",
+      date: "02 Juillet 2026",
+      statut: "Pas encore traité",
+      email: "youssef.alami@example.com",
+      initiaux: "YE"
+    },
+    {
+      id: 3,
+      nom: "Sarah Martin",
+      poste: "Développeur Mobile (Expo / React Native)",
+      entreprise: "IT ROAD",
+      date: "15 Juin 2026",
+      statut: "Pas encore traité",
+      email: "sarah.m@example.com",
+      initiaux: "SM"
+    },
+    {
+      id: 4,
+      nom: "Thomas Dubois",
+      poste: "Stagiaire Développeur (PFE)",
+      entreprise: "NEMO",
+      date: "05 Juin 2026",
+      statut: "Refusé",
+      email: "thomas.d@example.com",
+      initiaux: "TD"
+    },
+    {
+      id: 5,
+      nom: "Yasmine Alami",
+      poste: "Stagiaire Business Analyst / IT",
+      entreprise: "YT Consulting",
+      date: "28 Mai 2026",
+      statut: "Refusé",
+      email: "yasmine.a@example.com",
+      initiaux: "YA"
+    },
+    {
+      id: 6,
+      nom: "Karim Tazi",
+      poste: "Développeur Front-end (React/Tailwind)",
+      entreprise: "Viveris",
+      date: "12 Juillet 2026",
+      statut: "Accepté",
+      email: "karim.tazi@example.com",
+      initiaux: "KT"
+    }
+  ]);
+
   // États pour la gestion des offres d'emploi
   const [jobView, setJobView] = useState('list'); // 'list' | 'create' | 'edit'
   const [selectedJob, setSelectedJob] = useState(null);
@@ -117,8 +117,8 @@ export default function DashboardRH() {
     setJobView('edit');
   };
 
-  // Filtrage dynamique pour l'onglet Candidats
-  const filteredCandidatures = candidaturesInitiales.filter((candidat) => {
+  // Filtrage dynamique basé sur le State réactif
+  const filteredCandidatures = candidatures.filter((candidat) => {
     const matchesSearch = 
       candidat.nom.toLowerCase().includes(searchTerm.toLowerCase()) || 
       candidat.poste.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -153,12 +153,26 @@ export default function DashboardRH() {
             <button
               onClick={() => {
                 setActiveMenu('offres');
-                setJobView('list'); // Réinitialise sur la liste des offres
+                setJobView('list');
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeMenu === 'offres' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-50'}`}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
               Offres d'emploi
+            </button>
+            <button
+              onClick={() => setActiveMenu('candidats')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeMenu === 'candidats' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+              Candidats
+            </button>
+            <button
+              onClick={() => setActiveMenu('entretiens')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeMenu === 'entretiens' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 3V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+              Entretiens
             </button>
           </nav>
         </div>
@@ -289,10 +303,16 @@ export default function DashboardRH() {
                 <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                   <div className="p-6 pb-0 flex items-center justify-between">
                     <h2 className="font-semibold text-gray-900">Candidats récents</h2>
+                    <button 
+                      onClick={() => setActiveMenu('candidats')}
+                      className="text-sm text-indigo-600 font-medium hover:underline"
+                    >
+                      Voir tout
+                    </button>
                   </div>
                   <ul className="divide-y divide-gray-100 mt-4">
-                    {candidaturesInitiales.slice(0, 4).map((candidat) => (
-                      <li key={candidat.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-55/40 transition-colors">
+                    {candidatures.slice(0, 4).map((candidat) => (
+                      <li key={candidat.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50/40 transition-colors">
                         <div className="h-10 w-10 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center font-semibold shrink-0">
                           {candidat.initiaux}
                         </div>
@@ -323,7 +343,6 @@ export default function DashboardRH() {
               {/* --- SOUS-VUE : LISTE DES OFFRES --- */}
               {jobView === 'list' && (
                 <div>
-                  {/* Titre et Bouton de Création en haut à droite */}
                   <div className="flex justify-between items-center mb-6">
                     <div>
                       <h1 className="text-2xl font-bold text-gray-950">Offres d'emploi</h1>
@@ -362,17 +381,15 @@ export default function DashboardRH() {
                             <td className="px-6 py-4 text-gray-500">{job.location}</td>
                             <td className="px-6 py-4 text-right">
                               <div className="flex items-center justify-end gap-3">
-                                {/* Bouton Voir candidatures */}
                                 <button
                                   onClick={() => {
                                     setActiveMenu('candidats');
-                                    setSearchTerm('');
+                                    setSearchTerm(job.title);
                                   }}
                                   className="text-xs font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 px-3 py-2 rounded-lg transition-colors"
                                 >
                                   Voir candidature
                                 </button>
-                                {/* Bouton Edit */}
                                 <button
                                   onClick={() => handleEditClick(job)}
                                   className="text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-lg transition-colors"
@@ -440,7 +457,7 @@ export default function DashboardRH() {
             </div>
           )}
 
-          {/* VUE 3 : INTERFACE DE GESTION DES CANDIDATS (TABLEAU + FILTRES + RECHERCHE) */}
+          {/* VUE 3 : INTERFACE DE GESTION DES CANDIDATS */}
           {activeMenu === 'candidats' && (
             <div className="space-y-6">
               <div>
@@ -449,7 +466,6 @@ export default function DashboardRH() {
               </div>
 
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                {/* Barre de recherche et de filtres */}
                 <div className="p-6 border-b border-gray-200 flex flex-col sm:flex-row gap-4 justify-between items-center bg-gray-50/50">
                   <div className="relative w-full sm:w-80">
                     <span className="absolute left-3 top-2.5 text-gray-400">
@@ -466,6 +482,7 @@ export default function DashboardRH() {
                     />
                   </div>
 
+                  {/* Filtres mis à jour de manière dynamique */}
                   <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
                     {['Tous', 'Pas encore traité', 'Accepté', 'Refusé'].map((statut) => (
                       <button
@@ -483,7 +500,7 @@ export default function DashboardRH() {
                   </div>
                 </div>
 
-                {/* Tableau principal des candidats */}
+                {/* Tableau principal */}
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-left text-sm text-gray-500">
                     <thead className="bg-gray-50 text-gray-700 uppercase text-xs font-semibold border-b border-gray-200">
@@ -538,6 +555,12 @@ export default function DashboardRH() {
           )}
 
           {/* VUES TEMPORAIRES POUR AUTRES ONGLETS */}
+          {activeMenu === 'entretiens' && (
+            <div className="bg-white p-6 rounded-xl border border-gray-200">
+              <h1 className="text-2xl font-bold">Planification des Entretiens</h1>
+              <p className="text-gray-500 mt-2">Section entretiens en cours de développement...</p>
+            </div>
+          )}
 
         </main>
       </div>
