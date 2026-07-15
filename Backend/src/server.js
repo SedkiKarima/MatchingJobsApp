@@ -7,6 +7,8 @@ const processResume = require('./services/_process-resume');
 
 const pool = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
+const offersRoutes = require("./routes/offersRoutes");
+
 const app = express();
 
 app.use(cors());
@@ -17,7 +19,7 @@ app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
-
+app.use("/api/offers", offersRoutes);
 app.use('/api/auth', authRoutes);
 
 app.get('/api/pdf-extract', async (req, res) => {
