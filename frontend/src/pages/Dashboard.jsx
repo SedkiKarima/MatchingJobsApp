@@ -38,6 +38,7 @@ export default function DashboardRH() {
   // États pour la recherche et le filtre global de l'onglet candidats
   const [searchTerm, setSearchTerm] = useState('');
   const [filtreStatut, setFiltreStatut] = useState('Tous');
+  const [filtreJob, setFiltreJob] = useState(null); // { id, title } | null
 
   // États pour la gestion des offres d'emploi
   const [jobView, setJobView] = useState('list'); // 'list' | 'create' | 'edit'
@@ -121,8 +122,9 @@ export default function DashboardRH() {
       candidat.job_company.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatut = filtreStatut === 'Tous' || candidat.statut === filtreStatut;
+    const matchesJob = !filtreJob || candidat.job_id === filtreJob.id;
 
-    return matchesSearch && matchesStatut;
+    return matchesSearch && matchesStatut && matchesJob;
   });
 
   return (
@@ -334,6 +336,7 @@ export default function DashboardRH() {
                                     onClick={() => {
                                       setActiveMenu('candidats');
                                       setSearchTerm('');
+                                      setFiltreJob({ id: job.id, title: job.title });
                                     }}
                                     className="text-xs font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 px-3 py-2 rounded-lg transition-colors"
                                   >
@@ -411,9 +414,23 @@ export default function DashboardRH() {
           {/* VUE 3 : INTERFACE DE GESTION DES CANDIDATS (TABLEAU + FILTRES + RECHERCHE) */}
           {activeMenu === 'candidats' && (
             <div className="space-y-6">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-950">Suivi des Candidatures</h1>
-                <p className="text-gray-500 text-sm mt-1">Consultez l'état d'avancement des profils postulants.</p>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-950">Suivi des Candidatures</h1>
+                  <p className="text-gray-500 text-sm mt-1">Consultez l'état d'avancement des profils postulants.</p>
+                </div>
+                {filtreJob && (
+                  <div className="flex items-center gap-2 text-sm bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg">
+                    <span>Filtré par : <strong>{filtreJob.title}</strong></span>
+                    <button
+                      onClick={() => setFiltreJob(null)}
+                      className="text-indigo-500 hover:text-indigo-800 font-bold"
+                      title="Retirer le filtre"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
