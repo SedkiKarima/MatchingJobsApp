@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link,useNavigate} from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const mockOffers = [
@@ -14,6 +14,7 @@ const mockOffers = [
 export default function Home() {
   const { user, logout } = useAuth();
   const [query, setQuery] = useState('');
+  const navigate = useNavigate();
 
   const filteredOffers = mockOffers.filter((offer) =>
     `${offer.title} ${offer.location} ${offer.tags.join(' ')}`
@@ -122,9 +123,12 @@ export default function Home() {
                   <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium">{offer.contrat}</span>
                 </div>
 
-                <button className="mt-2 w-full py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors">
-                  Postuler
-                </button>
+               <button
+  onClick={() => navigate("/job-details")}
+  className="mt-2 w-full py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors"
+>
+  Postuler
+</button>
               </div>
             ))}
           </div>
