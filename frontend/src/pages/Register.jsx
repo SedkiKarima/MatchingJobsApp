@@ -72,14 +72,14 @@ async function handleSubmit(e) {
 
   try {
 
-    const registeredUser = await register(
+    await register(
       fullName.trim(),
       email.trim(),
       password,
       role
     );
 
-    navigate(registeredUser.role === 'manager' ? '/dashboard' : '/');
+    navigate('/');
 
 
   } catch (err) {

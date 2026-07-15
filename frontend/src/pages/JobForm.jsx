@@ -1,294 +1,182 @@
-import React, { useState } from "react";
+import { useState } from 'react';
+import apiClient from '../api/client';
 
-export default function JobForm() {
-  const [job, setJob] = useState({
-    title: "",
-    company: "",
-    companyDescription: "",
-    location: "",
-    workMode: "Remote",
-    visibility: "draft",
-    contractType: "Full Time",
-    salary: "",
-    experience: "",
-    education: "",
-    applicationDeadline: "",
-    description: "",
-    responsibilities: "",
-    requirements: "",
-    benefits: ""
-  });
+const CONTRACT_TYPES = ['CDI', 'CDD', 'Stage', 'Freelance'];
 
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
-
-  // Gestionnaire de changement unique pour tous les champs
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setJob((prevJob) => ({
-      ...prevJob,
-      [name]: value
-    }));
+function toFormState(initialData) {
+  return {
+    title: initialData?.title || '',
+    company: initialData?.company || '',
+    location: initialData?.location || '',
+    contract: initialData?.contract || 'CDI',
+    description: initialData?.description || '',
+    status: initialData?.status || 'draft',
+    tags: (initialData?.tags || []).join(', '),
   };
+}
+
+export default function JobForm({ initialData, onCancel, onSubmitSuccess }) {
+  const [job, setJob] = useState(() => toFormState(initialData));
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const isEditing = Boolean(initialData?.id);
+
+  function handleChange(e) {
+    const { name, value } = e.target;
+    setJob((prev) => ({ ...prev, [name]: value }));
+  }
 
   function validate() {
-    if (job.title.trim().length < 5)
-      return "Le titre doit contenir au moins 5 caractères.";
-
-    if (job.company.trim().length < 2)
-      return "Nom de l'entreprise invalide.";
-
-    if (!job.location)
-      return "Veuillez saisir la localisation.";
-
-    if (!job.salary)
-      return "Le salaire est obligatoire.";
-
-    if (Number(job.salary) <= 0)
-      return "Salaire invalide.";
-
-    if (job.description.trim().length < 50)
-      return "La description est trop courte (min. 50 caractères).";
-
-    if (!job.applicationDeadline)
-      return "Choisissez une date limite.";
-
+    if (job.title.trim().length < 5) return 'Le titre doit contenir au moins 5 caractères.';
+    if (job.company.trim().length < 2) return "Nom de l'entreprise invalide.";
+    if (!job.location.trim()) return 'Veuillez saisir la localisation.';
+    if (job.description.trim().length < 20) return 'La description est trop courte (min. 20 caractères).';
     return null;
   }
 
-  const handleSubmit = (e) => {
+  async function handleSubmit(e) {
     e.preventDefault();
-    setError("");
-    setSuccess(false);
-
     const validationError = validate();
     if (validationError) {
       setError(validationError);
       return;
     }
+    setError('');
+    setSubmitting(true);
 
-    // Si tout est valide
-    console.log("Données du job soumises :", job);
-    setSuccess(true);
-    // Optionnel : réinitialiser le formulaire ici
-  };
+    const payload = {
+      title: job.title.trim(),
+      company: job.company.trim(),
+      location: job.location.trim(),
+      contract: job.contract,
+      description: job.description.trim(),
+      status: job.status,
+      tags: job.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+    };
+
+    try {
+      const { data } = isEditing
+        ? await apiClient.put(`/offers/${initialData.id}`, payload)
+        : await apiClient.post('/offers', payload);
+      onSubmitSuccess(data.offer);
+    } catch (err) {
+      setError(err.response?.data?.message || "Impossible d'enregistrer l'offre.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
-    <div style={{ maxWidth: "600px", margin: "0 auto", padding: "20px" }}>
-      <h1>Create Job Posting</h1>
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-2xl">
+      <h1 className="text-xl font-bold text-gray-900 mb-6">
+        {isEditing ? "Modifier l'offre" : 'Créer une offre'}
+      </h1>
 
-      {error && <p style={{ color: "red", fontWeight: "bold" }}>{error}</p>}
-      {success && <p style={{ color: "green", fontWeight: "bold" }}>Offre d'emploi créée avec succès !</p>}
+      {error && <p className="bg-red-100 text-red-700 px-4 py-3 rounded-lg text-sm mb-5">{error}</p>}
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-        
-        {/* Title */}
-        <label>
-          <strong>Title * :</strong>
-          <input 
-            type="text" 
-            name="title" 
-            value={job.title} 
-            onChange={handleChange} 
-            style={{ width: "100%", padding: "8px", marginTop: "5px" }}
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <label className="block">
+          <span className="block text-sm font-medium text-gray-700 mb-2">Titre du poste *</span>
+          <input
+            type="text"
+            name="title"
+            value={job.title}
+            onChange={handleChange}
+            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
           />
         </label>
 
-        {/* Company */}
-        <label>
-          <strong>Company * :</strong>
-          <input 
-            type="text" 
-            name="company" 
-            value={job.company} 
-            onChange={handleChange} 
-            style={{ width: "100%", padding: "8px", marginTop: "5px" }}
+        <label className="block">
+          <span className="block text-sm font-medium text-gray-700 mb-2">Entreprise *</span>
+          <input
+            type="text"
+            name="company"
+            value={job.company}
+            onChange={handleChange}
+            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
           />
         </label>
 
-        {/* Company Description */}
-        <label>
-          <strong>Company Description :</strong>
-          <textarea 
-            name="companyDescription" 
-            value={job.companyDescription} 
-            onChange={handleChange} 
-            style={{ width: "100%", padding: "8px", marginTop: "5px", height: "60px" }}
-          />
-        </label>
-
-        {/* Location */}
-        <label>
-          <strong>Location * :</strong>
-          <input 
-            type="text" 
-            name="location" 
-            value={job.location} 
-            onChange={handleChange} 
-            style={{ width: "100%", padding: "8px", marginTop: "5px" }}
-          />
-        </label>
-        {/* Visibility */}
-           <label style={{ flex: 1 }}>
-            <strong>Visibility * :</strong>
-            <select 
-              name="visibility" 
-              value={job.visibility} 
+        <div className="grid grid-cols-2 gap-5">
+          <label className="block">
+            <span className="block text-sm font-medium text-gray-700 mb-2">Localisation *</span>
+            <input
+              type="text"
+              name="location"
+              value={job.location}
               onChange={handleChange}
-              style={{ width: "100%", padding: "8px", marginTop: "5px" }}
-            >
-              <option value="Remote">draft</option>
-              <option value="Hybrid">published</option>
-            </select>
-          </label>
-          {/*Work Mode */}
-
-        <div style={{ display: "flex", gap: "20px" }}>
-          {/* Work Mode */}
-          <label style={{ flex: 1 }}>
-            <strong>Work Mode :</strong>
-            <select 
-              name="workMode" 
-              value={job.workMode} 
-              onChange={handleChange}
-              style={{ width: "100%", padding: "8px", marginTop: "5px" }}
-            >
-              <option value="Remote">Remote</option>
-              <option value="Hybrid">Hybrid</option>
-              <option value="On-site">On-site</option>
-            </select>
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
+            />
           </label>
 
-          {/* Contract Type */}
-          <label style={{ flex: 1 }}>
-            <strong>Contract Type :</strong>
-            <select 
-              name="contractType" 
-              value={job.contractType} 
+          <label className="block">
+            <span className="block text-sm font-medium text-gray-700 mb-2">Type de contrat *</span>
+            <select
+              name="contract"
+              value={job.contract}
               onChange={handleChange}
-              style={{ width: "100%", padding: "8px", marginTop: "5px" }}
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
             >
-              <option value="Full Time">Full Time</option>
-              <option value="Part Time">Part Time</option>
-              <option value="Contract">Contract</option>
-              <option value="Internship">Internship</option>
+              {CONTRACT_TYPES.map((type) => (
+                <option key={type} value={type}>{type}</option>
+              ))}
             </select>
           </label>
         </div>
 
-        <div style={{ display: "flex", gap: "20px" }}>
-          {/* Salary */}
-          <label style={{ flex: 1 }}>
-            <strong>Salary * :</strong>
-            <input 
-              type="number" 
-              name="salary" 
-              value={job.salary} 
-              onChange={handleChange} 
-              style={{ width: "100%", padding: "8px", marginTop: "5px" }}
-            />
-          </label>
+        <label className="block">
+          <span className="block text-sm font-medium text-gray-700 mb-2">Description *</span>
+          <textarea
+            name="description"
+            value={job.description}
+            onChange={handleChange}
+            rows={5}
+            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition resize-none"
+          />
+        </label>
 
-          {/* Application Deadline */}
-          <label style={{ flex: 1 }}>
-            <strong>Application Deadline * :</strong>
-            <input 
-              type="date" 
-              name="applicationDeadline" 
-              value={job.applicationDeadline} 
-              onChange={handleChange} 
-              style={{ width: "100%", padding: "8px", marginTop: "5px" }}
-            />
-          </label>
+        <label className="block">
+          <span className="block text-sm font-medium text-gray-700 mb-2">Compétences (séparées par des virgules)</span>
+          <input
+            type="text"
+            name="tags"
+            value={job.tags}
+            onChange={handleChange}
+            placeholder="React, Node.js, MySQL"
+            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
+          />
+        </label>
+
+        <label className="block">
+          <span className="block text-sm font-medium text-gray-700 mb-2">Visibilité *</span>
+          <select
+            name="status"
+            value={job.status}
+            onChange={handleChange}
+            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
+          >
+            <option value="draft">Brouillon</option>
+            <option value="published">Publiée</option>
+          </select>
+        </label>
+
+        <div className="flex gap-3 mt-2">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="flex-1 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors disabled:bg-gray-400"
+          >
+            {submitting ? 'Enregistrement...' : isEditing ? "Enregistrer les modifications" : "Créer l'offre"}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-5 py-3 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
+          >
+            Annuler
+          </button>
         </div>
-
-        <div style={{ display: "flex", gap: "20px" }}>
-          {/* Experience */}
-          <label style={{ flex: 1 }}>
-            <strong>Experience Required :</strong>
-            <input 
-              type="text" 
-              name="experience" 
-              value={job.experience} 
-              onChange={handleChange} 
-              placeholder="e.g. 2+ years"
-              style={{ width: "100%", padding: "8px", marginTop: "5px" }}
-            />
-          </label>
-
-          {/* Education */}
-          <label style={{ flex: 1 }}>
-            <strong>Education :</strong>
-            <input 
-              type="text" 
-              name="education" 
-              value={job.education} 
-              onChange={handleChange} 
-              placeholder="e.g. Bachelor's Degree"
-              style={{ width: "100%", padding: "8px", marginTop: "5px" }}
-            />
-          </label>
-        </div>
-
-        {/* Description */}
-        <label>
-          <strong>Description * (min. 50 chars) :</strong>
-          <textarea 
-            name="description" 
-            value={job.description} 
-            onChange={handleChange} 
-            style={{ width: "100%", padding: "8px", marginTop: "5px", height: "100px" }}
-          />
-        </label>
-
-        {/* Responsibilities */}
-        <label>
-          <strong>Responsibilities :</strong>
-          <textarea 
-            name="responsibilities" 
-            value={job.responsibilities} 
-            onChange={handleChange} 
-            style={{ width: "100%", padding: "8px", marginTop: "5px", height: "80px" }}
-          />
-        </label>
-
-        {/* Requirements */}
-        <label>
-          <strong>Requirements :</strong>
-          <textarea 
-            name="requirements" 
-            value={job.requirements} 
-            onChange={handleChange} 
-            style={{ width: "100%", padding: "8px", marginTop: "5px", height: "80px" }}
-          />
-        </label>
-
-        {/* Benefits */}
-        <label>
-          <strong>Benefits :</strong>
-          <textarea 
-            name="benefits" 
-            value={job.benefits} 
-            onChange={handleChange} 
-            style={{ width: "100%", padding: "8px", marginTop: "5px", height: "60px" }}
-          />
-        </label>
-
-        <button 
-          type="submit" 
-          style={{ 
-            padding: "12px", 
-            backgroundColor: "#0070f3", 
-            color: "white", 
-            border: "none", 
-            borderRadius: "5px", 
-            cursor: "pointer", 
-            fontWeight: "bold",
-            marginTop: "10px"
-          }}
-        >
-          Create Job
-        </button>
       </form>
     </div>
   );

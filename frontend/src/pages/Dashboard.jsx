@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import JobForm from './JobForm'; // Import de votre composant JobForm
+import apiClient from '../api/client';
+import JobForm from './JobForm';
+import AIEvaluationModal from '../components/AIEvaluationModal';
 
 const funnelData = [
   { name: 'Sourcing', candidats: 145, pourcentage: 100 },
@@ -10,69 +13,14 @@ const funnelData = [
   { name: 'Embauches', candidats: 6, pourcentage: 4 },
 ];
 
-// Données unifiées pour l'ensemble du cycle des candidatures
-const candidaturesInitiales = [
-  {
-    id: 1,
-    nom: "Amine Benjelloun",
-    poste: "Développeur Fullstack React/Node",
-    entreprise: "Airbus Atlantic Maroc",
-    date: "09 Juillet 2026",
-    statut: "Pas encore traité",
-    email: "amine.b@example.com",
-    initiaux: "AB"
-  },
-  {
-    id: 2,
-    nom: "Youssef El Alami",
-    poste: "Développeur Web / React Native",
-    entreprise: "Ingenexa",
-    date: "02 Juillet 2026",
-    statut: "Pas encore traité",
-    email: "youssef.alami@example.com",
-    initiaux: "YE"
-  },
-  {
-    id: 3,
-    nom: "Sarah Martin",
-    poste: "Développeur Mobile (Expo / React Native)",
-    entreprise: "IT ROAD",
-    date: "15 Juin 2026",
-    statut: "Pas encore traité",
-    email: "sarah.m@example.com",
-    initiaux: "SM"
-  },
-  {
-    id: 4,
-    nom: "Thomas Dubois",
-    poste: "Stagiaire Développeur (PFE)",
-    entreprise: "NEMO",
-    date: "05 Juin 2026",
-    statut: "Refusé",
-    email: "thomas.d@example.com",
-    initiaux: "TD"
-  },
-  {
-    id: 5,
-    nom: "Yasmine Alami",
-    poste: "Stagiaire Business Analyst / IT",
-    entreprise: "YT Consulting",
-    date: "28 Mai 2026",
-    statut: "Refusé",
-    email: "yasmine.a@example.com",
-    initiaux: "YA"
-  },
-  {
-    id: 6,
-    nom: "Karim Tazi",
-    poste: "Développeur Front-end (React/Tailwind)",
-    entreprise: "Viveris",
-    date: "12 Juillet 2026",
-    statut: "Accepté",
-    email: "karim.tazi@example.com",
-    initiaux: "KT"
-  }
-];
+function initialsOf(fullName) {
+  return fullName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join('');
+}
 
 function getStatutStyle(statut) {
   switch (statut) {
@@ -81,15 +29,6 @@ function getStatutStyle(statut) {
     case 'Pas encore traité': return 'bg-yellow-100 text-yellow-800';
     default: return 'bg-gray-100 text-gray-800';
   }
-}
-
-function initialsOf(fullName) {
-  return fullName
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0].toUpperCase())
-    .join('');
 }
 
 export default function DashboardRH() {
@@ -103,13 +42,20 @@ export default function DashboardRH() {
   // États pour la gestion des offres d'emploi
   const [jobView, setJobView] = useState('list'); // 'list' | 'create' | 'edit'
   const [selectedJob, setSelectedJob] = useState(null);
-  const [jobs, setJobs] = useState([
-    { id: 1, title: "Développeur Fullstack React/Node", company: "TechCorp", location: "Paris (Remote)", salary: "45000", contractType: "Full Time" },
-    { id: 2, title: "Product Designer (UI/UX)", company: "Design Agency", location: "Lyon", salary: "38000", contractType: "Full Time" },
-    { id: 3, title: "DevOps Engineer", company: "Cloud Solutions", location: "Casablanca", salary: "55000", contractType: "Full Time" },
-  ]);
+  const [jobs, setJobs] = useState([]);
+  const [candidatures, setCandidatures] = useState([]);
+  const [aiEvaluating, setAiEvaluating] = useState(new Set());
+  const [aiResult, setAiResult] = useState(null);
+  const [loadingData, setLoadingData] = useState(true);
 
   const firstName = user.full_name.split(' ')[0];
+
+  useEffect(() => {
+    Promise.all([
+      apiClient.get('/offers').then(({ data }) => setJobs(data.filter((job) => job.manager_id === user.id))),
+      apiClient.get('/applications').then(({ data }) => setCandidatures(data)),
+    ]).finally(() => setLoadingData(false));
+  }, [user.id]);
 
   // Déclencher l'édition d'un job
   const handleEditClick = (job) => {
@@ -117,13 +63,63 @@ export default function DashboardRH() {
     setJobView('edit');
   };
 
+  const handleStatutChange = (applicationId, statut) => {
+    const previousStatut = candidatures.find((c) => c.id === applicationId)?.statut;
+    setCandidatures((prev) => prev.map((c) => (c.id === applicationId ? { ...c, statut } : c)));
+    apiClient.patch(`/applications/${applicationId}/statut`, { statut }).catch(() => {
+      setCandidatures((prev) => prev.map((c) => (c.id === applicationId ? { ...c, statut: previousStatut } : c)));
+    });
+  };
+
+  const handleEvaluate = async (candidat) => {
+    setAiEvaluating((prev) => new Set(prev).add(candidat.id));
+    try {
+      const { data } = await apiClient.post(`/applications/${candidat.id}/evaluate`);
+      setCandidatures((prev) =>
+        prev.map((c) =>
+          c.id === candidat.id
+            ? { ...c, ai_score: data.score, ai_decision: data.accepted, ai_reasons: data.reasons, ai_summary: data.summary }
+            : c
+        )
+      );
+      setAiResult({
+        candidateName: `${candidat.prenom} ${candidat.nom}`,
+        jobTitle: candidat.job_title,
+        score: data.score,
+        accepted: data.accepted,
+        reasons: data.reasons,
+        summary: data.summary,
+      });
+    } catch (err) {
+      alert(err.response?.data?.error || "Erreur lors de l'analyse IA");
+    } finally {
+      setAiEvaluating((prev) => {
+        const next = new Set(prev);
+        next.delete(candidat.id);
+        return next;
+      });
+    }
+  };
+
+  const showCachedResult = (candidat) => {
+    setAiResult({
+      candidateName: `${candidat.prenom} ${candidat.nom}`,
+      jobTitle: candidat.job_title,
+      score: candidat.ai_score,
+      accepted: candidat.ai_decision,
+      reasons: candidat.ai_reasons || [],
+      summary: candidat.ai_summary,
+    });
+  };
+
   // Filtrage dynamique pour l'onglet Candidats
-  const filteredCandidatures = candidaturesInitiales.filter((candidat) => {
-    const matchesSearch = 
-      candidat.nom.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      candidat.poste.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      candidat.entreprise.toLowerCase().includes(searchTerm.toLowerCase());
-    
+  const filteredCandidatures = candidatures.filter((candidat) => {
+    const fullName = `${candidat.prenom} ${candidat.nom}`;
+    const matchesSearch =
+      fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      candidat.job_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      candidat.job_company.toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesStatut = filtreStatut === 'Tous' || candidat.statut === filtreStatut;
 
     return matchesSearch && matchesStatut;
@@ -135,12 +131,12 @@ export default function DashboardRH() {
       {/* 1. BARRE LATÉRALE (SIDEBAR) */}
       <aside className="w-64 bg-white border-r border-gray-200 flex-col justify-between hidden md:flex">
         <div>
-          <div className="p-6 flex items-center gap-3 border-b border-gray-100">
+          <Link to="/" className="p-6 flex items-center gap-3 border-b border-gray-100 hover:bg-gray-50 transition-colors">
             <div className="h-9 w-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">
               H
             </div>
             <span className="font-bold text-xl tracking-tight text-gray-900">HirePulse</span>
-          </div>
+          </Link>
 
           <nav className="p-4 space-y-1">
             <button
@@ -217,7 +213,7 @@ export default function DashboardRH() {
               </div>
 
               {/* Cartes de statistiques (KPI Cards) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="bg-white p-5 rounded-xl border border-gray-200 flex items-start justify-between shadow-sm">
                   <div className="space-y-2">
                     <span className="text-sm text-gray-500 font-medium">Offres actives</span>
@@ -232,85 +228,45 @@ export default function DashboardRH() {
                 <div className="bg-white p-5 rounded-xl border border-gray-200 flex items-start justify-between shadow-sm">
                   <div className="space-y-2">
                     <span className="text-sm text-gray-500 font-medium">Candidatures reçues</span>
-                    <p className="text-2xl font-bold">297</p>
-                    <span className="text-xs text-green-600 font-medium flex items-center gap-1">↑ +12% vs mois dernier</span>
+                    <p className="text-2xl font-bold">{candidatures.length}</p>
                   </div>
                   <div className="p-3 bg-purple-50 text-purple-600 rounded-lg">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                   </div>
                 </div>
-
-                <div className="bg-white p-5 rounded-xl border border-gray-200 flex items-start justify-between shadow-sm">
-                  <div className="space-y-2">
-                    <span className="text-sm text-gray-500 font-medium">Entretiens prévus</span>
-                    <p className="text-2xl font-bold">8</p>
-                    <span className="text-xs text-gray-400 font-medium">Aujourd'hui & demain</span>
-                  </div>
-                  <div className="p-3 bg-yellow-50 text-yellow-600 rounded-lg">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 3V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                  </div>
-                </div>
-
-                <div className="bg-white p-5 rounded-xl border border-gray-200 flex items-start justify-between shadow-sm">
-                  <div className="space-y-2">
-                    <span className="text-sm text-gray-500 font-medium">Taux de conversion</span>
-                    <p className="text-2xl font-bold">4%</p>
-                    <span className="text-xs text-gray-400 font-medium">Sourcing → Embauche</span>
-                  </div>
-                  <div className="p-3 bg-green-50 text-green-600 rounded-lg">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
-                  </div>
-                </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-                {/* Pipeline de recrutement */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                  <h2 className="font-semibold text-gray-900 mb-5">Pipeline de recrutement</h2>
-                  <div className="space-y-4">
-                    {funnelData.map((step) => (
-                      <div key={step.name}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-gray-600">{step.name}</span>
-                          <span className="font-medium text-gray-900">{step.candidats}</span>
-                        </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-indigo-500 rounded-full"
-                            style={{ width: `${step.pourcentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
+              <div>
                 {/* Candidats récents réels et dynamiques */}
-                <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                   <div className="p-6 pb-0 flex items-center justify-between">
                     <h2 className="font-semibold text-gray-900">Candidats récents</h2>
                   </div>
-                  <ul className="divide-y divide-gray-100 mt-4">
-                    {candidaturesInitiales.slice(0, 4).map((candidat) => (
-                      <li key={candidat.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-55/40 transition-colors">
-                        <div className="h-10 w-10 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center font-semibold shrink-0">
-                          {candidat.initiaux}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-gray-900 truncate">{candidat.nom}</p>
-                          <p className="text-xs text-gray-500 truncate">
-                            {candidat.poste} • <span className="font-semibold text-gray-400">{candidat.entreprise}</span>
-                          </p>
-                        </div>
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${getStatutStyle(candidat.statut)}`}>
-                          {candidat.statut}
-                        </span>
-                        <span className="text-xs text-gray-400 whitespace-nowrap hidden sm:block">
-                          {candidat.date.split(' ')[0]} {candidat.date.split(' ')[1] || ''}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                  {candidatures.length === 0 ? (
+                    <p className="text-sm text-gray-400 px-6 py-8 text-center">Aucune candidature pour le moment.</p>
+                  ) : (
+                    <ul className="divide-y divide-gray-100 mt-4">
+                      {candidatures.slice(0, 4).map((candidat) => (
+                        <li key={candidat.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50/40 transition-colors">
+                          <div className="h-10 w-10 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center font-semibold shrink-0">
+                            {initialsOf(`${candidat.prenom} ${candidat.nom}`)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-gray-900 truncate">{candidat.prenom} {candidat.nom}</p>
+                            <p className="text-xs text-gray-500 truncate">
+                              {candidat.job_title} • <span className="font-semibold text-gray-400">{candidat.job_company}</span>
+                            </p>
+                          </div>
+                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${getStatutStyle(candidat.statut)}`}>
+                            {candidat.statut}
+                          </span>
+                          <span className="text-xs text-gray-400 whitespace-nowrap hidden sm:block">
+                            {new Date(candidat.applied_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
             </>
@@ -350,39 +306,51 @@ export default function DashboardRH() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {jobs.map((job) => (
-                          <tr key={job.id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="px-6 py-4">
-                              <span className="font-semibold text-gray-900 block">{job.title}</span>
-                              <span className="text-xs text-indigo-600 font-medium bg-indigo-50 px-2 py-0.5 rounded-full inline-block mt-1">
-                                {job.contractType || 'Full Time'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-gray-600">{job.company}</td>
-                            <td className="px-6 py-4 text-gray-500">{job.location}</td>
-                            <td className="px-6 py-4 text-right">
-                              <div className="flex items-center justify-end gap-3">
-                                {/* Bouton Voir candidatures */}
-                                <button
-                                  onClick={() => {
-                                    setActiveMenu('candidats');
-                                    setSearchTerm('');
-                                  }}
-                                  className="text-xs font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 px-3 py-2 rounded-lg transition-colors"
-                                >
-                                  Voir candidature
-                                </button>
-                                {/* Bouton Edit */}
-                                <button
-                                  onClick={() => handleEditClick(job)}
-                                  className="text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-lg transition-colors"
-                                >
-                                  Edit
-                                </button>
-                              </div>
+                        {loadingData ? (
+                          <tr>
+                            <td colSpan="4" className="px-6 py-10 text-center text-gray-400">Chargement des offres...</td>
+                          </tr>
+                        ) : jobs.length === 0 ? (
+                          <tr>
+                            <td colSpan="4" className="px-6 py-10 text-center text-gray-400">
+                              Aucune offre pour le moment — clique sur "Créer une offre" pour commencer.
                             </td>
                           </tr>
-                        ))}
+                        ) : (
+                          jobs.map((job) => (
+                            <tr key={job.id} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="px-6 py-4">
+                                <span className="font-semibold text-gray-900 block">{job.title}</span>
+                                <span className="text-xs text-indigo-600 font-medium bg-indigo-50 px-2 py-0.5 rounded-full inline-block mt-1">
+                                  {job.contract}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-gray-600">{job.company}</td>
+                              <td className="px-6 py-4 text-gray-500">{job.location}</td>
+                              <td className="px-6 py-4 text-right">
+                                <div className="flex items-center justify-end gap-3">
+                                  {/* Bouton Voir candidatures */}
+                                  <button
+                                    onClick={() => {
+                                      setActiveMenu('candidats');
+                                      setSearchTerm('');
+                                    }}
+                                    className="text-xs font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 px-3 py-2 rounded-lg transition-colors"
+                                  >
+                                    Voir candidature
+                                  </button>
+                                  {/* Bouton Edit */}
+                                  <button
+                                    onClick={() => handleEditClick(job)}
+                                    className="text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-lg transition-colors"
+                                  >
+                                    Edit
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -402,7 +370,7 @@ export default function DashboardRH() {
                   <JobForm 
                     onCancel={() => setJobView('list')} 
                     onSubmitSuccess={(newJob) => {
-                      setJobs(prev => [...prev, { ...newJob, id: Date.now() }]);
+                      setJobs(prev => [...prev, newJob]);
                       setJobView('list');
                     }}
                   />
@@ -429,7 +397,7 @@ export default function DashboardRH() {
                       setSelectedJob(null);
                     }} 
                     onSubmitSuccess={(updatedJob) => {
-                      setJobs(prev => prev.map(item => item.id === selectedJob.id ? { ...item, ...updatedJob } : item));
+                      setJobs(prev => prev.map(item => item.id === selectedJob.id ? updatedJob : item));
                       setSelectedJob(null);
                       setJobView('list');
                     }}
@@ -492,40 +460,84 @@ export default function DashboardRH() {
                         <th className="px-6 py-4 font-medium">Poste visé</th>
                         <th className="px-6 py-4 font-medium">Entreprise</th>
                         <th className="px-6 py-4 font-medium">Date d'application</th>
+                        <th className="px-6 py-4 font-medium">CV</th>
+                        <th className="px-6 py-4 font-medium">Analyse IA</th>
                         <th className="px-6 py-4 font-medium text-center">Statut</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {filteredCandidatures.length > 0 ? (
+                      {loadingData ? (
+                        <tr>
+                          <td colSpan="7" className="px-6 py-10 text-center text-gray-400">Chargement des candidatures...</td>
+                        </tr>
+                      ) : filteredCandidatures.length > 0 ? (
                         filteredCandidatures.map((candidat) => (
                           <tr key={candidat.id} className="hover:bg-gray-50/50 transition-colors">
                             <td className="px-6 py-4 flex items-center gap-3">
                               <div className="h-9 w-9 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center font-semibold shrink-0 text-sm">
-                                {candidat.initiaux}
+                                {initialsOf(`${candidat.prenom} ${candidat.nom}`)}
                               </div>
                               <div className="min-w-0">
-                                <span className="font-semibold text-gray-900 block truncate">{candidat.nom}</span>
+                                <span className="font-semibold text-gray-900 block truncate">{candidat.prenom} {candidat.nom}</span>
                                 <span className="text-xs text-gray-400 block truncate">{candidat.email}</span>
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-gray-600 font-medium">{candidat.poste}</td>
-                            <td className="px-6 py-4 text-gray-500">{candidat.entreprise}</td>
-                            <td className="px-6 py-4 text-gray-400">{candidat.date}</td>
+                            <td className="px-6 py-4 text-gray-600 font-medium">{candidat.job_title}</td>
+                            <td className="px-6 py-4 text-gray-500">{candidat.job_company}</td>
+                            <td className="px-6 py-4 text-gray-400">
+                              {new Date(candidat.applied_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                            </td>
+                            <td className="px-6 py-4">
+                              {candidat.resume_path ? (
+                                <a
+                                  href={`http://localhost:5000${candidat.resume_path}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-indigo-600 font-semibold text-xs hover:underline"
+                                >
+                                  Voir le CV
+                                </a>
+                              ) : (
+                                <span className="text-xs text-gray-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4">
+                              {aiEvaluating.has(candidat.id) ? (
+                                <span className="text-xs text-gray-400">Analyse en cours...</span>
+                              ) : candidat.ai_score !== null && candidat.ai_score !== undefined ? (
+                                <button
+                                  onClick={() => showCachedResult(candidat)}
+                                  className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full transition-opacity hover:opacity-80 ${candidat.ai_decision ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
+                                >
+                                  {candidat.ai_decision ? '✅' : '❌'} Score {candidat.ai_score}/100
+                                </button>
+                              ) : candidat.resume_path && candidat.resume_path.toLowerCase().endsWith('.pdf') ? (
+                                <button
+                                  onClick={() => handleEvaluate(candidat)}
+                                  className="text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors"
+                                >
+                                  Analyser avec l'IA
+                                </button>
+                              ) : (
+                                <span className="text-xs text-gray-300">CV PDF requis</span>
+                              )}
+                            </td>
                             <td className="px-6 py-4 text-center">
-                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full ${getStatutStyle(candidat.statut)}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${
-                                  candidat.statut === 'Accepté' ? 'bg-green-500' :
-                                  candidat.statut === 'Refusé' ? 'bg-red-500' :
-                                  'bg-yellow-500'
-                                }`} />
-                                {candidat.statut}
-                              </span>
+                              <select
+                                value={candidat.statut}
+                                onChange={(e) => handleStatutChange(candidat.id, e.target.value)}
+                                className={`text-xs font-semibold px-2.5 py-1 rounded-full border-0 outline-none cursor-pointer ${getStatutStyle(candidat.statut)}`}
+                              >
+                                <option value="Pas encore traité">Pas encore traité</option>
+                                <option value="Accepté">Accepté</option>
+                                <option value="Refusé">Refusé</option>
+                              </select>
                             </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="5" className="px-6 py-10 text-center text-gray-400">
+                          <td colSpan="7" className="px-6 py-10 text-center text-gray-400">
                             Aucun candidat trouvé pour ces critères de recherche.
                           </td>
                         </tr>
@@ -541,6 +553,8 @@ export default function DashboardRH() {
 
         </main>
       </div>
+
+      <AIEvaluationModal result={aiResult} onClose={() => setAiResult(null)} />
     </div>
   );
 }

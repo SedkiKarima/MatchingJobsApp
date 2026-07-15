@@ -56,7 +56,8 @@ Return ONLY valid JSON with exactly this shape, no markdown, no code fences, no 
   "summary": "",
   "recommendation": "",
   "decision": true,
-  "status": "Approved"
+  "status": "Approved",
+  "reasons": ["", "", ""]
 }
 
 Rules:
@@ -64,6 +65,7 @@ Rules:
 - "matchedSkills" are skills from the resume that align with the job description.
 - "missingSkills" are skills required by the job description but not found in the resume.
 - "summary" is 2-4 sentences, factual and neutral.
+- "reasons" must contain EXACTLY 3 short, specific sentences justifying the score/decision (a mix of the strongest matches and the most important gaps).
 - Provide your best estimate for "decision", "status", and "recommendation" based on the score, but the backend will recalculate and finalize these deterministically.
 - Output must be valid JSON parseable by JSON.parse with no trailing commas and no comments.`;
 }
