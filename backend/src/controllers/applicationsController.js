@@ -38,9 +38,7 @@ exports.getApplicationsForManager = async (req, res) => {
       `SELECT a.*, j.title AS job_title, j.company AS job_company
        FROM applications a
        JOIN jobs j ON j.id = a.job_id
-       WHERE j.manager_id = ?
-       ORDER BY a.applied_at DESC`,
-      [req.user.id]
+       ORDER BY a.applied_at DESC`
     );
     res.json(rows);
   } catch (error) {
@@ -58,10 +56,7 @@ exports.updateApplicationStatus = async (req, res) => {
       return res.status(400).json({ error: 'Statut invalide' });
     }
 
-    const [rows] = await pool.query(
-      `SELECT a.id FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.id = ? AND j.manager_id = ?`,
-      [id, req.user.id]
-    );
+    const [rows] = await pool.query('SELECT id FROM applications WHERE id = ?', [id]);
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Candidature introuvable' });
     }
@@ -79,7 +74,7 @@ exports.evaluateApplication = async (req, res) => {
     const { id } = req.params;
 
     const [rows] = await pool.query(
-      `SELECT a.id, a.resume_path, j.description, j.manager_id
+      `SELECT a.id, a.resume_path, j.description
        FROM applications a
        JOIN jobs j ON j.id = a.job_id
        WHERE a.id = ?`,
@@ -90,9 +85,6 @@ exports.evaluateApplication = async (req, res) => {
     }
 
     const application = rows[0];
-    if (application.manager_id !== req.user.id) {
-      return res.status(403).json({ error: "Vous ne pouvez analyser que les candidatures de vos propres offres." });
-    }
     if (!application.resume_path) {
       return res.status(400).json({ error: 'Cette candidature ne contient pas de CV.' });
     }
