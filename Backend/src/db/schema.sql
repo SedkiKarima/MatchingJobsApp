@@ -55,3 +55,65 @@ CREATE TABLE ai_analyses (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+CREATE TABLE jobs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(150) NOT NULL,
+    company VARCHAR(150) NOT NULL,
+    location VARCHAR(100) NOT NULL,
+    contract ENUM('CDI','CDD','Stage','Freelance') NOT NULL,
+    description TEXT,
+    manager_id INT,
+    status ENUM('draft', 'published') NOT NULL DEFAULT 'draft',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (manager_id)
+        REFERENCES users(id)
+        ON DELETE SET NULL
+);
+
+
+CREATE TABLE job_tags (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    job_id INT NOT NULL,
+    tag VARCHAR(50) NOT NULL,
+
+    FOREIGN KEY (job_id)
+        REFERENCES jobs(id)
+        ON DELETE CASCADE
+);
+INSERT INTO jobs
+(title, company, location, contract, manager_id)
+VALUES
+('Développeur Fullstack React/Node','Capital One','Casablanca','CDI',1),
+
+('Product Designer (UI/UX)','Stripe','Rabat · Hybride','CDI',1),
+
+('DevOps Engineer','Chipotle','À distance','Freelance',2),
+
+('Data Scientist','Electronic Arts','Casablanca','CDI',2),
+
+('Chargé(e) de support client','Zendesk','Tanger','Stage',1),
+
+('Ingénieur QA / Game Tester','Electronic Arts','Marrakech','CDI',2)
+
+INSERT INTO job_tags (job_id, tag)
+VALUES
+(25, 'React'),
+(25, 'Node.js'),
+(25, 'MySQL'),
+
+(26, 'Figma'),
+(26, 'UX Research'),
+
+(27, 'Docker'),
+(27, 'CI/CD'),
+(27, 'AWS'),
+
+(28, 'Python'),
+(28, 'ML'),
+
+(29, 'Relation client'),
+
+(30, 'Tests manuels'),
+(30, 'Bug tracking');
