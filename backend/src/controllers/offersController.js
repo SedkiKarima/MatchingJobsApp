@@ -143,10 +143,6 @@ exports.updateOffer = async (req, res) => {
 
         }
 
-        if (existing[0].manager_id !== req.user.id) {
-            return res.status(403).json({ message: "Vous ne pouvez modifier que vos propres offres." });
-        }
-
         const { title, company, location, contract, description, status, tags } = req.body;
 
         await pool.query(
@@ -203,10 +199,6 @@ exports.deleteOffer = async (req, res) => {
                 message: "Offre introuvable."
             });
 
-        }
-
-        if (existing[0].manager_id !== req.user.id) {
-            return res.status(403).json({ message: "Vous ne pouvez supprimer que vos propres offres." });
         }
 
         await pool.query('DELETE FROM jobs WHERE id = ?', [id]);

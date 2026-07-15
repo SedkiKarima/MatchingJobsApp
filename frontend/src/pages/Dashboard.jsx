@@ -53,7 +53,7 @@ export default function DashboardRH() {
 
   useEffect(() => {
     Promise.all([
-      apiClient.get('/offers').then(({ data }) => setJobs(data.filter((job) => job.manager_id === user.id))),
+      apiClient.get('/offers').then(({ data }) => setJobs(data)),
       apiClient.get('/applications').then(({ data }) => setCandidatures(data)),
     ]).finally(() => setLoadingData(false));
   }, [user.id]);

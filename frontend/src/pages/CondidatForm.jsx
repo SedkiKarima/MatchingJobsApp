@@ -277,7 +277,7 @@ export default function CondidatForm() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full py-3.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold transition-colors disabled:bg-gray-400"
+          className="w-full py-3.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold transition-colors disabled:bg-gray-400"
         >
           {submitting ? 'Envoi en cours...' : 'Continuer'}
         </button>
