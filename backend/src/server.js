@@ -8,6 +8,7 @@ const processResume = require('./services/_process-resume');
 const pool = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const offersRoutes = require("./routes/offersRoutes");
+const applicationsRoutes = require("./routes/applicationsRoutes");
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.get('/api/health', (req, res) => {
 });
 app.use("/api/offers", offersRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/applications', applicationsRoutes);
 
 app.get('/api/pdf-extract', async (req, res) => {
   try {

@@ -62,12 +62,12 @@ export default function Login() {
 
     try {
 
-      const loggedInUser = await login(
+      await login(
         email.trim(),
         password
       );
 
-      navigate(loggedInUser.role === 'manager' ? '/dashboard' : '/');
+      navigate('/');
 
     } catch (err) {
 

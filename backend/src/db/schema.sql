@@ -95,7 +95,7 @@ VALUES
 
 ('Chargé(e) de support client','Zendesk','Tanger','Stage',1),
 
-('Ingénieur QA / Game Tester','Electronic Arts','Marrakech','CDI',2)
+('Ingénieur QA / Game Tester','Electronic Arts','Marrakech','CDI',2);
 
 INSERT INTO job_tags (job_id, tag)
 VALUES
@@ -117,3 +117,27 @@ VALUES
 
 (30, 'Tests manuels'),
 (30, 'Bug tracking');
+
+CREATE TABLE applications (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  job_id INT NOT NULL,
+  candidate_id INT,
+  nom VARCHAR(255) NOT NULL,
+  prenom VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  telephone VARCHAR(30) NOT NULL,
+  whatsapp BOOLEAN NOT NULL DEFAULT FALSE,
+  linkedin VARCHAR(500),
+  portfolio VARCHAR(500),
+  message TEXT,
+  resume_path VARCHAR(500),
+  statut ENUM('Pas encore traité', 'Accepté', 'Refusé') NOT NULL DEFAULT 'Pas encore traité',
+  applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  ai_score INT NULL,
+  ai_decision BOOLEAN NULL,
+  ai_reasons JSON NULL,
+  ai_summary TEXT NULL,
+  ai_evaluated_at DATETIME NULL,
+  FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
+  FOREIGN KEY (candidate_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;

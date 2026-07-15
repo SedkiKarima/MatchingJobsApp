@@ -1,314 +1,141 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
-const job = {
-  id: 1,
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import apiClient from '../api/client';
 
-  title: "Full Stack Web Developer",
-
-  company: "360 Marketing Agency",
-
-  companyDescription:
-    "360 Marketing Agency is a digital agency specialized in web development, e-commerce, ERP systems, AI solutions and digital marketing.",
-
-  location: "Casablanca",
-
-  workMode: "Remote / Hybrid",
-
-  contractType: "Full Time",
-
-  salary: "15 000 - 20 000 MAD",
-
-  experience: "2+ Years",
-
-  education: "Bachelor or Master Degree",
-
-  publishedAt: "10 July 2026",
-
-  applicationDeadline: "31 July 2026",
-
-  description:
-    "We are looking for a talented Full Stack Web Developer to join our team and work on websites, e-commerce platforms, marketplaces, ERP systems, custom business solutions and AI-powered applications.",
-
-  responsibilities: [
-    "Develop modern web applications.",
-    "Build REST APIs.",
-    "Work with React and Node.js.",
-    "Optimize application performance.",
-    "Collaborate with designers and project managers.",
-    "Maintain existing applications."
-  ],
-
-  requirements: [
-    "React.js",
-    "Node.js",
-    "Express.js",
-    "MySQL",
-    "Git",
-    "REST API",
-    "Docker",
-    "Tailwind CSS"
-  ],
-
-  benefits: [
-    "Remote work",
-    "Flexible schedule",
-    "Health insurance",
-    "Annual bonus",
-    "Paid training",
-    "Modern equipment"
-  ]
-};
-
-
-
-
+function JobDetailsSkeleton() {
+  return (
+    <div className="min-h-screen bg-gray-100 py-10">
+      <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden animate-pulse">
+        <div className="bg-gray-200 h-48" />
+        <div className="grid lg:grid-cols-3">
+          <div className="lg:col-span-2 p-8 space-y-4">
+            <div className="h-6 bg-gray-200 rounded w-1/3" />
+            <div className="h-4 bg-gray-200 rounded w-full" />
+            <div className="h-4 bg-gray-200 rounded w-5/6" />
+            <div className="h-4 bg-gray-200 rounded w-2/3" />
+          </div>
+          <div className="bg-gray-50 border-l p-8">
+            <div className="h-48 bg-gray-200 rounded-xl" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function JobDetails() {
-    const navigate = useNavigate();
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [job, setJob] = useState(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiClient
+      .get(`/offers/${id}`)
+      .then(({ data }) => setJob(data))
+      .catch(() => setError('Offre introuvable.'))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return <JobDetailsSkeleton />;
+  }
+
+  if (error || !job) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center gap-4 px-4 text-center">
+        <p className="text-red-600 font-medium">{error || 'Offre introuvable.'}</p>
+        <Link to="/" className="text-sm text-indigo-600 font-medium hover:underline">
+          ← Retour aux offres
+        </Link>
+      </div>
+    );
+  }
 
   return (
-
     <div className="min-h-screen bg-gray-100 py-10">
+      <div className="max-w-6xl mx-auto mb-4 px-1">
+        <Link to="/" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Retour aux offres
+        </Link>
+      </div>
 
       <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
 
         {/* Header */}
-
         <div className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-10">
-
-          <h1 className="text-4xl font-bold">
-            {job.title}
-          </h1>
-
-          <h2 className="text-xl mt-2 opacity-90">
-            {job.company}
-          </h2>
+          <h1 className="text-4xl font-bold">{job.title}</h1>
+          <h2 className="text-xl mt-2 opacity-90">{job.company}</h2>
 
           <div className="flex flex-wrap gap-3 mt-6">
-
+            <span className="bg-white/20 px-4 py-2 rounded-full">📍 {job.location}</span>
+            <span className="bg-white/20 px-4 py-2 rounded-full">💼 {job.contract}</span>
             <span className="bg-white/20 px-4 py-2 rounded-full">
-                📍 {job.location}
+              {job.status === 'published' ? '✅ Publiée' : '📝 Brouillon'}
             </span>
-
-            <span className="bg-white/20 px-4 py-2 rounded-full">
-                🏠 {job.workMode}
-            </span>
-
-            <span className="bg-white/20 px-4 py-2 rounded-full">
-                💼 {job.contractType}
-            </span>
-
-            <span className="bg-white/20 px-4 py-2 rounded-full">
-                💰 {job.salary}
-            </span>
-
           </div>
-
         </div>
-
 
         <div className="grid lg:grid-cols-3">
-
           {/* LEFT */}
-
           <div className="lg:col-span-2 p-8 space-y-10">
-
             <section>
-
-              <h2 className="text-2xl font-bold mb-4">
-                Company
-              </h2>
-
+              <h2 className="text-2xl font-bold mb-4">Description du poste</h2>
               <p className="text-gray-600 leading-8">
-                {job.companyDescription}
+                {job.description || "Aucune description fournie pour cette offre."}
               </p>
-
             </section>
 
-
-
-            <section>
-
-              <h2 className="text-2xl font-bold mb-4">
-                Job Description
-              </h2>
-
-              <p className="text-gray-600 leading-8">
-                {job.description}
-              </p>
-
-            </section>
-
-
-
-            <section>
-
-              <h2 className="text-2xl font-bold mb-4">
-                Responsibilities
-              </h2>
-
-              <ul className="space-y-3 list-disc ml-6">
-
-                {job.responsibilities.map((item,index)=>(
-
-                  <li
-                    key={index}
-                    className="text-gray-600"
-                  >
-                    {item}
-                  </li>
-
-                ))}
-
-              </ul>
-
-            </section>
-
-
-
-            <section>
-
-              <h2 className="text-2xl font-bold mb-4">
-                Requirements
-              </h2>
-
-              <div className="flex flex-wrap gap-3">
-
-                {job.requirements.map((skill)=>(
-
-                  <span
-                    key={skill}
-                    className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full"
-                  >
-                    {skill}
-                  </span>
-
-                ))}
-
-              </div>
-
-            </section>
-
-
-
-            <section>
-
-              <h2 className="text-2xl font-bold mb-4">
-                Benefits
-              </h2>
-
-              <ul className="space-y-3 list-disc ml-6">
-
-                {job.benefits.map((item,index)=>(
-
-                  <li
-                    key={index}
-                    className="text-gray-600"
-                  >
-                    {item}
-                  </li>
-
-                ))}
-
-              </ul>
-
-            </section>
-
+            {job.tags && job.tags.length > 0 && (
+              <section>
+                <h2 className="text-2xl font-bold mb-4">Compétences recherchées</h2>
+                <div className="flex flex-wrap gap-3">
+                  {job.tags.map((tag) => (
+                    <span key={tag} className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
-
 
           {/* RIGHT */}
-
           <div className="bg-gray-50 border-l p-8">
-
             <div className="bg-white rounded-xl shadow p-6 space-y-5">
-
-              <h2 className="text-xl font-bold">
-                Job Overview
-              </h2>
-
+              <h2 className="text-xl font-bold">Aperçu de l'offre</h2>
 
               <div>
-
-                <p className="text-sm text-gray-500">
-                  Experience
-                </p>
-
-                <p className="font-semibold">
-                  {job.experience}
-                </p>
-
+                <p className="text-sm text-gray-500">Type de contrat</p>
+                <p className="font-semibold">{job.contract}</p>
               </div>
-
 
               <div>
-
-                <p className="text-sm text-gray-500">
-                  Education
-                </p>
-
-                <p className="font-semibold">
-                  {job.education}
-                </p>
-
+                <p className="text-sm text-gray-500">Localisation</p>
+                <p className="font-semibold">{job.location}</p>
               </div>
-
 
               <div>
-
-                <p className="text-sm text-gray-500">
-                  Published
-                </p>
-
+                <p className="text-sm text-gray-500">Publiée le</p>
                 <p className="font-semibold">
-                  {job.publishedAt}
+                  {new Date(job.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </p>
-
               </div>
 
-
-              <div>
-
-                <p className="text-sm text-gray-500">
-                  Deadline
-                </p>
-
-                <p className="font-semibold">
-                  {job.applicationDeadline}
-                </p>
-
-              </div>
-
-
-
-              <button  onClick={() => navigate("/condidat-form")}
-                className="
-                w-full
-                bg-indigo-600
-                hover:bg-indigo-700
-                transition
-                text-white
-                py-4
-                rounded-xl
-                font-bold
-                "
+              <button
+                onClick={() => navigate(`/condidat-form/${job.id}`)}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 transition text-white py-4 rounded-xl font-bold"
               >
-
-                Apply Now
-
+                Postuler
               </button>
-
             </div>
-
           </div>
-
         </div>
-
       </div>
-
     </div>
-
   );
-
 }
- 

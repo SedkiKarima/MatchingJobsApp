@@ -1,23 +1,26 @@
-import { useState } from 'react';
-import { Link,useNavigate} from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-const mockOffers = [
-  { id: 1, title: 'Développeur Fullstack React/Node', company: 'Capital One', location: 'Casablanca', contrat: 'CDI', tags: ['React', 'Node.js', 'MySQL'] },
-  { id: 2, title: 'Product Designer (UI/UX)', company: 'Stripe', location: 'Rabat · Hybride', contrat: 'CDI', tags: ['Figma', 'UX Research'] },
-  { id: 3, title: 'DevOps Engineer', company: 'Chipotle', location: 'À distance', contrat: 'Freelance', tags: ['Docker', 'CI/CD', 'AWS'] },
-  { id: 4, title: 'Data Scientist', company: 'Electronic Arts', location: 'Casablanca', contrat: 'CDI', tags: ['Python', 'ML'] },
-  { id: 5, title: 'Chargé(e) de support client', company: 'Zendesk', location: 'Tanger', contrat: 'Stage', tags: ['Relation client'] },
-  { id: 6, title: 'Ingénieur QA / Game Tester', location: 'Marrakech', company: 'Electronic Arts', contrat: 'CDI', tags: ['Tests manuels', 'Bug tracking'] },
-];
+import apiClient from '../api/client';
 
 export default function Home() {
   const { user, logout } = useAuth();
   const [query, setQuery] = useState('');
+  const [offers, setOffers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const filteredOffers = mockOffers.filter((offer) =>
-    `${offer.title} ${offer.location} ${offer.tags.join(' ')}`
+  useEffect(() => {
+    apiClient
+      .get('/offers?status=published')
+      .then(({ data }) => setOffers(data))
+      .catch(() => setError('Impossible de charger les offres pour le moment.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filteredOffers = offers.filter((offer) =>
+    `${offer.title} ${offer.location} ${(offer.tags || []).join(' ')}`
       .toLowerCase()
       .includes(query.toLowerCase())
   );
@@ -27,7 +30,7 @@ export default function Home() {
       {/* NAVBAR */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <span className="font-bold text-xl tracking-tight text-gray-900">HirePulse</span>
+          <Link to="/" className="font-bold text-xl tracking-tight text-gray-900">HirePulse</Link>
 
           {user ? (
             <div className="flex items-center gap-4">
@@ -91,7 +94,11 @@ export default function Home() {
           Toutes les offres ({filteredOffers.length})
         </h2>
 
-        {filteredOffers.length === 0 ? (
+        {loading ? (
+          <p className="text-gray-500 text-sm">Chargement des offres...</p>
+        ) : error ? (
+          <p className="text-red-600 text-sm">{error}</p>
+        ) : filteredOffers.length === 0 ? (
           <p className="text-gray-500 text-sm">Aucune offre ne correspond à votre recherche.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -111,7 +118,7 @@ export default function Home() {
                 </div>
 
                 <div className="flex flex-wrap gap-1.5">
-                  {offer.tags.map((tag) => (
+                  {(offer.tags || []).map((tag) => (
                     <span key={tag} className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
                       {tag}
                     </span>
@@ -120,15 +127,15 @@ export default function Home() {
 
                 <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
                   <span>{offer.location}</span>
-                  <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium">{offer.contrat}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium">{offer.contract}</span>
                 </div>
 
-               <button
-  onClick={() => navigate("/job-details")}
-  className="mt-2 w-full py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors"
->
-  Postuler
-</button>
+                <button
+                  onClick={() => navigate(`/job-details/${offer.id}`)}
+                  className="mt-2 w-full py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors"
+                >
+                  Postuler
+                </button>
               </div>
             ))}
           </div>

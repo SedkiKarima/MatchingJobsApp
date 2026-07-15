@@ -22,12 +22,12 @@ router.get("/:id", offersController.getOfferById);
 // ============================
 
 // Créer une offre
-router.post("/", authMiddleware.requireAuth, offersController.createOffer);
+router.post("/", authMiddleware.requireAuth, authMiddleware.requireRole('manager'), offersController.createOffer);
 
 // Modifier une offre
-router.put("/:id", authMiddleware.requireAuth, offersController.updateOffer);
+router.put("/:id", authMiddleware.requireAuth, authMiddleware.requireRole('manager'), offersController.updateOffer);
 
 // Supprimer une offre
-router.delete("/:id", authMiddleware.requireAuth, offersController.deleteOffer);
+router.delete("/:id", authMiddleware.requireAuth, authMiddleware.requireRole('manager'), offersController.deleteOffer);
 
 module.exports = router;

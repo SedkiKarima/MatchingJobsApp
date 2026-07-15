@@ -12,7 +12,7 @@ class CandidateEvaluationError extends Error {
 
 const REQUIRED_FIELDS = [
   'score', 'matchedSkills', 'missingSkills', 'strengths',
-  'weaknesses', 'summary', 'recommendation', 'decision', 'status',
+  'weaknesses', 'summary', 'recommendation', 'decision', 'status', 'reasons',
 ];
 
 function getClient() {
@@ -39,6 +39,10 @@ function parseModelJson(rawText) {
     if (!(field in parsed)) {
       throw new CandidateEvaluationError(`Evaluation JSON missing required field: ${field}`, 'INVALID_SCHEMA');
     }
+  }
+
+  if (!Array.isArray(parsed.reasons) || parsed.reasons.length !== 3) {
+    throw new CandidateEvaluationError('Evaluation "reasons" must be an array of exactly 3 items.', 'INVALID_REASONS');
   }
 
   return parsed;

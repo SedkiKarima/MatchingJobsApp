@@ -1,5 +1,22 @@
 const pool = require('../config/db');
 
+async function attachTags(offers) {
+    if (offers.length === 0) return offers;
+
+    const ids = offers.map((offer) => offer.id);
+    const [tagRows] = await pool.query(
+        `SELECT job_id, tag FROM job_tags WHERE job_id IN (${ids.map(() => '?').join(',')})`,
+        ids
+    );
+
+    const tagsByJobId = {};
+    for (const row of tagRows) {
+        if (!tagsByJobId[row.job_id]) tagsByJobId[row.job_id] = [];
+        tagsByJobId[row.job_id].push(row.tag);
+    }
+
+    return offers.map((offer) => ({ ...offer, tags: tagsByJobId[offer.id] || [] }));
+}
 
 // ===============================
 // GET ALL OFFERS
@@ -8,9 +25,13 @@ const pool = require('../config/db');
 exports.getAllOffers = async (req, res) => {
     try {
 
-        const [offers] = await pool.query('SELECT * FROM jobs');
+        const { status } = req.query;
+        const [offers] = status
+            ? await pool.query('SELECT * FROM jobs WHERE status = ? ORDER BY created_at DESC', [status])
+            : await pool.query('SELECT * FROM jobs ORDER BY created_at DESC');
+        const offersWithTags = await attachTags(offers);
 
-        res.status(200).json(offers);
+        res.status(200).json(offersWithTags);
 
     } catch (error) {
 
@@ -43,7 +64,8 @@ exports.getOfferById = async (req, res) => {
 
         }
 
-        res.status(200).json(rows[0]);
+        const [withTags] = await attachTags(rows);
+        res.status(200).json(withTags);
 
     } catch (error) {
 
@@ -66,18 +88,26 @@ exports.createOffer = async (req, res) => {
 
     try {
 
-        const { title, company, location, contract, description, manager_id, status } = req.body;
+        const { title, company, location, contract, description, status, tags } = req.body;
 
         const [result] = await pool.query(
             'INSERT INTO jobs (title, company, location, contract, description, manager_id, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [title, company, location, contract, description, manager_id || null, status || 'draft']
+            [title, company, location, contract, description, req.user.id, status || 'draft']
         );
 
+        if (Array.isArray(tags) && tags.length > 0) {
+            await pool.query(
+                `INSERT INTO job_tags (job_id, tag) VALUES ${tags.map(() => '(?, ?)').join(', ')}`,
+                tags.flatMap((tag) => [result.insertId, tag])
+            );
+        }
+
         const [rows] = await pool.query('SELECT * FROM jobs WHERE id = ?', [result.insertId]);
+        const [withTags] = await attachTags(rows);
 
         res.status(201).json({
             message: "Offre créée avec succès.",
-            offer: rows[0]
+            offer: withTags
         });
 
     } catch (error) {
@@ -113,18 +143,33 @@ exports.updateOffer = async (req, res) => {
 
         }
 
-        const { title, company, location, contract, description, manager_id, status } = req.body;
+        if (existing[0].manager_id !== req.user.id) {
+            return res.status(403).json({ message: "Vous ne pouvez modifier que vos propres offres." });
+        }
+
+        const { title, company, location, contract, description, status, tags } = req.body;
 
         await pool.query(
-            'UPDATE jobs SET title = ?, company = ?, location = ?, contract = ?, description = ?, manager_id = ?, status = ? WHERE id = ?',
-            [title, company, location, contract, description, manager_id || null, status, id]
+            'UPDATE jobs SET title = ?, company = ?, location = ?, contract = ?, description = ?, status = ? WHERE id = ?',
+            [title, company, location, contract, description, status, id]
         );
 
+        if (Array.isArray(tags)) {
+            await pool.query('DELETE FROM job_tags WHERE job_id = ?', [id]);
+            if (tags.length > 0) {
+                await pool.query(
+                    `INSERT INTO job_tags (job_id, tag) VALUES ${tags.map(() => '(?, ?)').join(', ')}`,
+                    tags.flatMap((tag) => [id, tag])
+                );
+            }
+        }
+
         const [rows] = await pool.query('SELECT * FROM jobs WHERE id = ?', [id]);
+        const [withTags] = await attachTags(rows);
 
         res.status(200).json({
             message: "Offre mise à jour.",
-            offer: rows[0]
+            offer: withTags
         });
 
     } catch (error) {
@@ -158,6 +203,10 @@ exports.deleteOffer = async (req, res) => {
                 message: "Offre introuvable."
             });
 
+        }
+
+        if (existing[0].manager_id !== req.user.id) {
+            return res.status(403).json({ message: "Vous ne pouvez supprimer que vos propres offres." });
         }
 
         await pool.query('DELETE FROM jobs WHERE id = ?', [id]);
@@ -194,7 +243,7 @@ exports.searchOffers = async (req, res) => {
             [keyword, keyword, keyword]
         );
 
-        res.json(rows);
+        res.json(await attachTags(rows));
 
     } catch (error) {
 
